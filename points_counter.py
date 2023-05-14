@@ -29,14 +29,15 @@ import subprocess       # main script part
 # rgx_pts =   r'^(.*#\s*\+\s*([\+\-]?\d+(?:\.\d+)?)?(\s*(?:inoff\.)?\s*ZP)?(?:.*)?)$'
 # rgx_pts =   r'^(.*((?:#\s*[\+\-]+)\d+(?:\.\d+)?)(\s*(?:inoff\.)?\s*ZP)?(?:.*)?)$'
 
-# rgx_tot = r'^.*(\d+).\s*Uebungsblatt,\s*Aufgabe\s*(\d+)*.*#\n#\s*\((\d+)\s*Pkt\.\)'
+# rgx_sht = r'^.*(\d+).\s*Uebungsblatt,\s*Aufgabe\s*(\d+)*.*#\n#\s*\((\d+)\s*Pkt\.\)'
+# rgx_sht = r'^.*(\d+).\s*Uebungsblatt,\s*(?:freiw\.?)?\s*Aufgabe\s*(\d+)*.*#\n#\s*\((\d+)\s*Pkt\.?(?:.*?(\d+)\s*Zusatzpkt\.?)?\)'
 
 #
 # global regexs to find stuff
 #
 rgx_lsg =   r'^(.*?)# *\+ *(\d+(?:\.\d+)?)?(\s*(?:inoff\.?)?\s*ZP)?(.*)?(?=\n)$' # points in the solutions
 rgx_pts =   r'^(.*?)# *!!! *([\+\-]+\d+(?:\.\d+)?)?(\s*(?:inoff\.?)?\s*ZP)?(.*)?(?=\n)$' # points in submission added or substracted
-rgx_tot = r'^.*(\d+).\s*Uebungsblatt,\s*(?:freiw\.?)?\s*Aufgabe\s*(\d+)*.*#\n#\s*\((\d+)\s*Pkt\.?(?:.*?(\d+)\s*Zusatzpkt\.?)?\)'
+rgx_sht =   r'^.*(\d+).\s*Uebungsblatt,\s*(?:freiw\.?)?\s*Aufgabe\s*(\d+ ?(?:[a-zA-Z])?\)?) *#\n#\s*(?:\d\.\s*Vorgabe[A-Za-z#.,:\s\n]*)?(?:\(?(\d+)(?=\s*Pkt|\s*Punkte)\s*(?:Pkt\.?)?(?:Punkte)?\)?)?(?:.*?(\d+)\s*Zusatzpkt\.?)?'
 
 rgx_lsg_can_find = """
 from sympy import diff, symbols         # +1
@@ -52,7 +53,7 @@ a, b, x = symbols("a b x")              # !!! -0.5 some comment
 sympy.core.function.diff(..)            # !!! -0.2 inoff ZP comment
 """
 
-rgx_tot_can_find = """
+rgx_sht_can_find = """
 #########################################
 #   Mathematik am Computer (SoSe 2023)  #
 #                                       #
@@ -69,6 +70,9 @@ rgx_tot_can_find = """
 # -> they come in lists of line_strs starting and ending with quotes""
 # -> would give the advantage of having cell numbers where something happened
 
+# with open(file=myfile,  mode="r") as f:
+#     text = f.read()
+
 def get_py_code(ipynb_file):
     # https://stackoverflow.com/questions/37797709/convert-json-ipython-notebook-ipynb-to-py-file
     # jupyter nbconvert --to script 'my-notebook.ipynb'
@@ -76,25 +80,23 @@ def get_py_code(ipynb_file):
     # does this allow for wrap_text: 80 instead of 100 default?
     # jupyter nbconvert --PythonExporter.filters.wrap_text=80  --to script ./solutions/Lsg_01.ipynb
 
-    # https://stackoverflow.com/questions/89228/how-do-i-execute-a-program-or-call-a-system-command
-    # subprocess.call("jupyter nbconvert --stdout --to script " + myfile, shell=True) # elder method
-
     # https://stackoverflow.com/questions/41171791/how-to-suppress-or-capture-the-output-of-subprocess-run
     # a = subprocess.run("jupyter nbconvert --stdout --to script './solutions/Lsg_02.ipynb'", shell=True, capture_output=True, text=True)
     
-    # cmd1 = "jupyter nbconvert --stdout --to script '{filename}'".format(filename=ipynb_file)
-    # a = subprocess.run(cmd1, shell=True, stdout=subprocess.PIPE, text=True)
-
     ipynb_file = "\'" + ipynb_file + "\'"
     # cmd_lst = ['jupyter', 'nbconvert', '--stdout', '--to script', ipynb_file]
     # cmd_lst = ['bash']
     # cmd_lst = ['bash', '-c', '"jupyter', 'nbconvert', '--stdout', '--to script', ipynb_file, '"']
-    cmd_lst = ['bash', '-c -l', '"jupyter', 'nbconvert', '--stdout', '--to script', ipynb_file, '"'] # -c -l needed for vscode build task
+    cmd_lst = ['bash', '-c -l', '"jupyter', 'nbconvert', '--stdout', '--to script', ipynb_file, '"']
+    # -c -l needed for vscode build task
     # cmd = 'bash -c \"jupyter nbconvert --stdout --to script {filename}\"'.format(filename=ipynb_file)
     cmd = ' '.join(cmd_lst)
     
-    # a = subprocess.run(' '.join(cmd_lst), shell=True)
-    print("Executing:\n" + cmd + "\n\n")
+    print(
+        "Executing:\n" 
+        + cmd 
+        # + "\n"
+    )
     a = subprocess.run(
         cmd, 
         shell=True, 
@@ -104,26 +106,18 @@ def get_py_code(ipynb_file):
     )
     return a.stdout
 
-# with open(file=myfile,  mode="r") as f:
-#     text = f.read()
-
-# text = """from sympy import diff, symbols         # +1
-# a, b, x = symbols("a b x")              # +0.5
-# # sympy.core.function.diff(..)          # +1 inoff. ZP
-# foo = bar + 2    # +2 inoff. ZP something else"""
-
-def get_sheet_data(text : str, regex : str = rgx_tot) -> list:
+def get_sheet_data(text : str, regex : str = rgx_sht) -> list:
     res = re.findall(regex, text, re.MULTILINE)
     # print(res)
     sheet_data_dict = {
         'sheet'     : int(res[0][0]),
-        'exercise'  : int(res[0][1]),
-        'points'    : int(res[0][2]),
+        'exercise'  : str.strip(res[0][1]),
+        'points'    : int(res[0][2]) if res[0][2] != '' else 0,
         'bonus'     : int(res[0][3]) if res[0][3] != '' else 0
         }
     return sheet_data_dict
 
-def points_finder(text : str, regex : str = rgx_lsg) -> list:
+def remarks_finder(text : str, regex : str = rgx_lsg) -> list:
 
     # print(text)
     # print()
@@ -143,7 +137,7 @@ def points_finder(text : str, regex : str = rgx_lsg) -> list:
     cmpldrgx=re.compile(regex, re.MULTILINE)
 
     if re.search(cmpldrgx, text) is None:
-        print("Error: no matches!")
+        print("Error: no matches for remarks!")
         return []
     
     matches = re.finditer(cmpldrgx, text)
@@ -224,7 +218,7 @@ def get_points(match_dict_lst : list) -> dict:
     res.update({'points_sum' : points_sum, 'bonus_sum' : bonusp_sum})
     return res
 
-def print_found_points(match_dict_lst : list):
+def print_found_remarks(match_dict_lst : list):
 
     for match_dct in match_dict_lst:
         # print(
@@ -247,14 +241,18 @@ def print_found_points(match_dict_lst : list):
 
 def print_found_total(match_dict_lst : list):
     totals = get_points(match_dict_lst)
+    print("Found points from remarks in this file:")
     print(
-        "Punkte: {0:3}, Bonuspunkte: {1:3}".format(totals['points_sum'], totals['bonus_sum'])
+        # "Punkte: {0:3}  \t Bonuspunkte (ZP): {1:2}".format(totals['points_sum'], totals['bonus_sum'])
+        "Points:  {0:2.1f}  \t Bonus Points (ZP):  {1:2.1f}".format(totals['points_sum'], totals['bonus_sum'])
     )
 
 def print_sheet_data(sh_dat_dict : dict):
+    print('Extracted Sheet Data')
     # print('Blattdaten')
     print(
-        "Blatt \t{0:02d} \tAufgabe \t  {1:02d} \nPunkte:\t{2:02d} \tBonuspunkte (ZP): {3:2d}\n".format(
+        # "Blatt \t {0:02d} \t Aufgabe \t  {1:>3} \nPunkte:\t {2:02d} \t Bonuspunkte (ZP): {3:2d}".format(
+        "Sheet \t {0:02d} \t Exercise \t{1:>6} \nPoints:\t {2:02d} \t Bonus Points (ZP): {3:2d}".format(
         sh_dat_dict['sheet'], 
         sh_dat_dict['exercise'], 
         sh_dat_dict['points'],
@@ -262,17 +260,7 @@ def print_sheet_data(sh_dat_dict : dict):
         )
     )
 
-
-# https://docs.python.org/3/library/__main__.html
-def main():
-    # print('sys.argv: \t', sys.argv)
-    print(
-        'script:',
-        '\n    filename: ',   os.path.basename(os.path.realpath(__file__)),
-        '\n    location: ',   os.path.dirname(os.path.realpath(__file__)),
-        '\n     calldir: ',   os.getcwd(),
-        )
-
+def prepare_parser():
     parser = argparse.ArgumentParser(
         prog='points_counter.py',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -280,7 +268,6 @@ def main():
             textwrap.dedent("""\
             Points Counter (points_counter.py)
             ----------------------------------
-
             """) \
             + textwrap.indent(textwrap.dedent('''\
             This script was written to help finding corrections for a student job 
@@ -295,23 +282,16 @@ def main():
             + textwrap.dedent("""\nHow to run:""")
             + textwrap.indent(textwrap.dedent("""\n
             (compare: https://stackoverflow.com/questions/27494758/how-do-i-make-a-python-script-executable)
-
             Make it executable by
-
                 chmod +x ./points_counter.py
-
             optionally add it to the PATH
-
                 export PATH=/path/to/script:$PATH
-
             and then call it as 
-
                 ./points_counter.py filename
-
             """), '  '),
         epilog=textwrap.dedent("""\
-            ... enjoy and give feedback to yangntze+ptscnt@gmail.com \n\n
-            """),
+            ... enjoy and give feedback to yangntze+ptscnt@gmail.com
+            """)+" \n",
         # usage='%(prog)s [options]'
         )
     parser.add_argument(
@@ -329,49 +309,58 @@ def main():
         help='Indicates whether or not a solution is scanned.'
     )
     
+    return parser
+
+# https://docs.python.org/3/library/__main__.html
+def main():
+    # print('sys.argv: \t', sys.argv)
+    print(
+        'script:',
+        '\n    filename: ',   os.path.basename(os.path.realpath(__file__)),
+        '\n    location: ',   os.path.dirname(os.path.realpath(__file__)),
+        '\n     calldir: ',   os.getcwd(),
+        )
+
+    parser = prepare_parser()
+    
     args = parser.parse_args()
-    # parser.parse_args(
-    #     ['submissions/Mathem. am Computer (SoSe 23)-Aufgabe 01-1211043/Isabel Hirschmann_2725676_assignsubmission_file_/feedback_jz_I_Hirschmann_Bl_01_Aufg_01.ipynb']
-    #     )
-    print(args)
+    # print(args)
 
-    print(os.path.isfile(args.filename))
-    print(args.filename.endswith('.ipynb'))
-    print(os.path.basename(args.filename))
-    print(os.path.abspath(args.filename))
-    print(os.path.realpath(os.getcwd()))
+    file_full_path  = os.path.abspath(args.filename)
+    file_name       = os.path.basename(args.filename)
+    base_path       = os.path.dirname(file_full_path)
+    file_name_noext = os.path.splitext(file_name)[0]
+    file_type       = os.path.splitext(file_name)[1]
+    is_file         = os.path.isfile(args.filename)
+    is_ipynb        = args.filename.endswith('.ipynb')
 
-    # base_path = "/Users/ztzmjn/Documents/Studium/Mathe/sonstiges/hiwi/SS23/py_kurs/"
-    # # file_name = "/solutions/Lsg_01.ipynb"
-    # # file_name = "submissions/Mathem. am Computer (SoSe 23)-Aufgabe 02-1211044/Conrad Kühn_2725690_assignsubmission_file_/Aufg_02_ConradKuehn.ipynb"
-    # file_name = "submissions/Mathem. am Computer (SoSe 23)-Aufgabe 01-1211043/Isabel Hirschmann_2725676_assignsubmission_file_/feedback_jz_I_Hirschmann_Bl_01_Aufg_01.ipynb"
-    # # file_name = "exercises/Aufg_04.ipynb"
-    # myfile = base_path + file_name
+    if(not is_file):
+        print("Error: not a file!")
+        return 1
+    if not is_ipynb:
+        print("Error: Currently only *.ipynb is supported!")
+        return 1
+    
+    # print(file_name_noext, " is a file: ", is_file, sep='')
+    # print("*", file_type, " is a notebook: ", is_ipynb, sep='')
+    # print(file_name)
+    # print(base_path)
+    # print(file_full_path)
 
-    base_path = "/Users/ztzmjn/Documents/Studium/Mathe/sonstiges/hiwi/SS23/py_kurs/"
+    text = get_py_code(file_full_path)
+    print(" --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---")
 
-    text = get_py_code(myfile)
-    print("\n --- --- --- --- --- --- ---   --- --- --- --- --- --- ---   --- --- --- --- --- --- --- \n")
-    print(text[300:400])
-    # sdd = get_sheet_data(text)
-    # print_sheet_data(sdd)
+    if args.solution == True:
+        rg_found = remarks_finder(text, regex = rgx_lsg)
+        print(text[50:384])
+        print("\n\tSolution:")
+    else:
+        rg_found = remarks_finder(text, regex = rgx_pts)
 
-
-    # rg_found = points_finder(text, regex = rgx_lsg)
-    # print_found_points(rg_found)
-
-    rg_found = points_finder(text, regex = rgx_pts)
-    # print(rg_found[0])
-    print_found_points(rg_found)
-
-    # for i in range(len(rg_found)):
-    # for i in [1]:
-    #     print('\n________')                 # ________
-    #     print(rg_found[i][0].group(0))      # # !!! +1 ZP für Nutzung des einzelnen Imports und Aufruf über "sympy."
-    #     print(rg_found[i][0].group(1))      #  code vor dem "#"
-    #     print(rg_found[i][0].group(2))      # +1
-    #     print(rg_found[i][0].group(3))      #  ZP
-    #     print(rg_found[i][0].group(4))      #  für Nutzung des einzelnen Imports und Aufruf über "sympy."
+    print_found_remarks(rg_found)
+    print(file_name_noext)
+    print_sheet_data(get_sheet_data(text))
+    print_found_total(rg_found)
 
     return 0
 
