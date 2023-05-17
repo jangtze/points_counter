@@ -1,3 +1,17 @@
+'''
+
+      Project: hiwi_ss23
+         File: points_counter.py
+ File Created: 08.05.2023
+       Author: jangtze (yangntze+github@gmail.com)
+-----
+Last Modified: 18.05.2023 00:16:21
+  Modified By: jangtze (yangntze+github@gmail.com)
+-----
+    Copyright: 2023 jangtze
+
+'''
+
 #!/usr/bin/env python3
 
 # https://stackoverflow.com/questions/27494758/how-do-i-make-a-python-script-executable
@@ -35,9 +49,22 @@ import subprocess       # main script part
 #
 # global regexs to find stuff
 #
-rgx_lsg =   r'^(.*?)# *\+ *(\d+(?:\.\d+)?)?(\s*(?:inoff\.?)?\s*ZP)?(.*)?(?=\n)$' # points in the solutions
-rgx_pts =   r'^(.*?)# *!!! *([\+\-]+\d+(?:\.\d+)?)?(\s*(?:inoff\.?)?\s*ZP)?(.*)?(?=\n)$' # points in submission added or substracted
-rgx_sht =   r'^.*(\d+).\s*Uebungsblatt,\s*(?:freiw\.?)?\s*Aufgabe\s*(\d+ ?(?:[a-zA-Z])?\)?) *#\n#\s*(?:\d\.\s*Vorgabe[A-Za-z#.,:\s\n]*)?(?:\(?(\d+)(?=\s*Pkt|\s*Punkte)\s*(?:Pkt\.?)?(?:Punkte)?\)?)?(?:.*?(\d+)\s*Zusatzpkt\.?)?'
+# TODO: named captures may improve generality and expandability of regex later
+line_of_code        = r'^(.*?)'
+py_comment          = r'#'
+cpp_comment         = r'//'
+lsg_point_comment   = r' *\+ *(\d+(?:\.\d+)?)?(\s*(?:inoff\.?)?\s*ZP)?(.*)?(?=\n)$'
+cor_point_comment   = r' *!!! *([\+\-]+\d+(?:\.\d+)?)?(\s*(?:inoff\.?)?\s*ZP)?(.*)?(?=\n)$'
+
+# py / ipynb
+rgx_lsg     = line_of_code + py_comment + lsg_point_comment # points in the solutions
+rgx_pts     = line_of_code + py_comment + cor_point_comment # points in submission added or substracted
+rgx_sht     = r'^.*(?P<sheet>\d+).\s*Uebungsblatt,\s*(?:freiw\.?)?\s*Aufgabe\s*(?P<exercise>\d+ ?(?:[a-zA-Z])?\)?) *#\n#\s*(?:\d\.\s*Vorgabe[A-Za-z#.,:\s\n]*)?(?:\(?(?P<points>\d+)(?=\s*Pkt|\s*Punkte)\s*(?:Pkt\.?)?(?:Punkte)?\)?)?(?:.*?(?P<bonus>\d+)\s*Zusatzpkt\.?)?'
+
+# cpp
+rgx_lsg_cpp = line_of_code + re.escape(cpp_comment) + lsg_point_comment # points in the solutions
+rgx_pts_cpp = line_of_code + re.escape(cpp_comment) + cor_point_comment # points in submission added or substracted
+rgx_sht_cpp = r'^\/\*[\s]*(?:insges\.)? (?:\(?(?P<points>\d+)\s*(?:Pkt\.?)?(?:Punkte)?\)?)?(?:.*?(?P<bonus>\d+)\s*(Zusatzpkt\.?|inoff\.? ZP))?'
 
 rgx_lsg_can_find = """
 from sympy import diff, symbols         # +1
@@ -69,9 +96,6 @@ rgx_sht_can_find = """
 # -> would need processing of the cells 
 # -> they come in lists of line_strs starting and ending with quotes""
 # -> would give the advantage of having cell numbers where something happened
-
-# with open(file=myfile,  mode="r") as f:
-#     text = f.read()
 
 def get_py_code(ipynb_file):
     # https://stackoverflow.com/questions/37797709/convert-json-ipython-notebook-ipynb-to-py-file
@@ -107,14 +131,68 @@ def get_py_code(ipynb_file):
     return a.stdout
 
 def get_sheet_data(text : str, regex : str = rgx_sht) -> list:
-    res = re.findall(regex, text, re.MULTILINE)
-    # print(res)
+    cmpldrgx=re.compile(regex, re.MULTILINE)
+    res = re.findall(cmpldrgx, text)
+    
+    # print(res, cmpldrgx.groups, cmpldrgx.pattern, cmpldrgx.groupindex)
+
     sheet_data_dict = {
-        'sheet'     : int(res[0][0]),
-        'exercise'  : str.strip(res[0][1]),
-        'points'    : int(res[0][2]) if res[0][2] != '' else 0,
-        'bonus'     : int(res[0][3]) if res[0][3] != '' else 0
-        }
+        'sheet'     : 0,
+        'exercise'  : 'N/A',
+        'points'    : 0.0,
+        'bonus'     : 0.0
+    }
+
+    # former way by indices 
+    # -> now checking by type and placing with key 
+    # -> checking key would be better ... is better if empty match checked
+    # {
+    #     'sheet'     : int(res[0][0]) if res[0][0] != '' else 0,
+    #     'exercise'  : str.strip(res[0][1]),
+    #     'points'    : int(res[0][2]) if res[0][2] != '' else 0,
+    #     'bonus'     : int(res[0][3]) if res[0][3] != '' else 0
+    #     }
+    
+    for key in cmpldrgx.groupindex.keys():
+        # print(
+        #     key,
+        #     cmpldrgx.groupindex[key]-1,
+        #     res[0][cmpldrgx.groupindex[key]-1]
+        #     )
+        # who programmed this ?!? index not from 0 
+        # ... maybe they had capture of everything in 0 once?
+
+        m = res[0][cmpldrgx.groupindex[key]-1]
+
+        # https://stackoverflow.com/questions/354038/how-do-i-check-if-a-string-represents-a-number-float-or-int
+        # if m.replace('-','',1).isdigit() :
+        #     m = int(m)
+        # elif m.replace('.','',1).replace('-','',1).isdigit():
+        #     m = float(m)
+        # elif m.strip() == '':
+        #     continue
+        # else:
+        #     m = m.strip()
+
+        if m == '':
+            continue
+
+        if key=='sheet' :
+            m = int(m)
+        elif key=='points' or key=='bonus':
+            m = float(m)
+        elif key=='exercise':
+            m = m.strip()
+        else:
+            pass
+            
+        sheet_data_dict.update([(
+            key, 
+            m
+            )])
+    
+    # print(sheet_data_dict)
+
     return sheet_data_dict
 
 def remarks_finder(text : str, regex : str = rgx_lsg) -> list:
@@ -158,7 +236,7 @@ def remarks_finder(text : str, regex : str = rgx_lsg) -> list:
         res_dict_lst.append(dict({
             'pos' : next(i+1 for i in range(len(line_num)) if line_num[i]>m.start(0)) , 
             'match' : m , 
-            'pts' : points , 
+            'points' : points , 
             'bonus' : zp_bool , 
             'code' : code_str , 
             'comment' : cmmt_str , 
@@ -208,17 +286,17 @@ def get_points(match_dict_lst : list) -> dict:
     for match_dct in match_dict_lst:
         if match_dct['bonus']:
             # print('bonus')
-            # print(bonusp_sum, match_dct['pts'])
-            bonusp_sum += match_dct['pts']
+            # print(bonusp_sum, match_dct['points'])
+            bonusp_sum += match_dct['points']
             # print(bonusp_sum )
         else:
-            points_sum += match_dct['pts']
+            points_sum += match_dct['points']
 
     res = {}
     res.update({'points_sum' : points_sum, 'bonus_sum' : bonusp_sum})
     return res
 
-def print_found_remarks(match_dict_lst : list):
+def print_found_remarks(match_dict_lst : list, comment_symbol=py_comment):
 
     for match_dct in match_dict_lst:
         # print(
@@ -227,15 +305,35 @@ def print_found_remarks(match_dict_lst : list):
         #         # match_dct['code'] if match_dct['code']
         #         # match_dct['code'] if match_dct['code'] != '' else '#' + match_dct['comment'] \
         #         # if '#' not in match_dct['code'] else match_dct['line'],
-        #         match_dct['pts'],
+        #         match_dct['points'],
         #         "ZP" if match_dct['bonus'] else ""
         #     )
+                # comment_symbol + match_dct['comment'] if match_dct['code'] == '' else match_dct['line'] if ((comment_symbol+' ') in match_dct['code']) else match_dct['code'],
+                # match_dct['points'],
+
+        # print(match_dct['code'], '|', match_dct['comment'])
+
+        info = ''
+        bonus_str = "ZP" if match_dct['bonus'] else ""
+        if (    match_dct['code']   == '' 
+            or  comment_symbol      == match_dct['code'].strip() # if the 'code' isa a line with two comment symbols
+            ) and not match_dct['comment'] == '':
+            points = '+' + str(match_dct['points']) if match_dct['points']>0 else str(match_dct['points']) + bonus_str
+            info = (comment_symbol 
+                    # + ' ' + points # do I want points with the comment string?
+                    + ' ' + match_dct['comment'].strip()
+                    )
+        # elif match_dct['comment'] == '' and (comment_symbol+' ') in match_dct['code']:
+        elif match_dct['comment'] == '' and not match_dct['code'] == '' and not match_dct['code'].startswith(comment_symbol):
+            info = match_dct['code'].strip()
+        else:
+            info = match_dct['line'].strip()
         print(
             '{2: 2.1f} {3:2} {0:>4}: {1:80} '.format(
                 match_dct['pos'], 
-                '#' + match_dct['comment'] if match_dct['code'] == '' else match_dct['line'] if '# ' in match_dct['code'] else match_dct['code'],
-                match_dct['pts'],
-                "ZP" if match_dct['bonus'] else ""
+                info,
+                match_dct['points'],
+                bonus_str
             )
         )
 
@@ -244,7 +342,7 @@ def print_found_total(match_dict_lst : list):
     print("Found points from remarks in this file:")
     print(
         # "Punkte: {0:3}  \t Bonuspunkte (ZP): {1:2}".format(totals['points_sum'], totals['bonus_sum'])
-        "Points:  {0:2.1f}  \t Bonus Points (ZP):  {1:2.1f}".format(totals['points_sum'], totals['bonus_sum'])
+        "Points:  {0:3.1f}  \t Bonus Points (ZP):  {1:2.1f}".format(totals['points_sum'], totals['bonus_sum'])
     )
 
 def print_sheet_data(sh_dat_dict : dict):
@@ -252,7 +350,7 @@ def print_sheet_data(sh_dat_dict : dict):
     # print('Blattdaten')
     print(
         # "Blatt \t {0:02d} \t Aufgabe \t  {1:>3} \nPunkte:\t {2:02d} \t Bonuspunkte (ZP): {3:2d}".format(
-        "Sheet \t {0:02d} \t Exercise \t{1:>6} \nPoints:\t {2:02d} \t Bonus Points (ZP): {3:2d}".format(
+        "Sheet \t {0:02d} \t Exercise \t  {1:>6} \nPoints:\t {2:02.1f} \t Bonus Points (ZP):  {3:2.1f}".format(
         sh_dat_dict['sheet'], 
         sh_dat_dict['exercise'], 
         sh_dat_dict['points'],
@@ -260,7 +358,7 @@ def print_sheet_data(sh_dat_dict : dict):
         )
     )
 
-def prepare_parser():
+def prepare_argv_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='points_counter.py',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -308,8 +406,98 @@ def prepare_parser():
         # const='True',
         help='Indicates whether or not a solution is scanned.'
     )
-    
+    parser.add_argument(
+        '-c', '--cplusplus', '--cpp', '--c++',
+        default=False,
+        action='store_true',
+        help='Flag that indicates whether or not a cpp-file is scanned.'
+    )
+    parser.add_argument(
+        '-j', '--jupyternotebook', '--ipynb', '--jupyter',
+        default=True,
+        action='store_true',
+        help='Flag that indicates whether or not a JupyterNotebook-file is scanned.'
+    )
+
     return parser
+
+def check_file(args : argparse.Namespace) -> bool:
+
+    # print(file_name_noext, " is a file: ", is_file, sep='')
+    # print("*", file_type, " is a notebook: ", is_ipynb, sep='')
+    # print(file_name)
+    # print(base_path)
+    # print(file_full_path)
+
+    is_file         = os.path.isfile(args.filename)
+    if(not is_file):
+        print("Error: not a file!")
+        return False
+
+    file_endings    = ('.ipynb', '.cpp', '.hpp', '.h', '.c' )
+    is_format       = args.filename.endswith(file_endings)
+    if not is_format:
+        print("Error: Currently only files of type ", file_endings ," are supported!")
+        return False
+    
+    return True
+
+def process_ipynb(args : argparse.Namespace, verbose : bool =True) -> list:
+
+    file_full_path  = os.path.abspath(args.filename)
+    file_name       = os.path.basename(args.filename)
+    # base_path       = os.path.dirname(file_full_path)
+    file_name_noext = os.path.splitext(file_name)[0]
+    # file_type       = os.path.splitext(file_name)[1]
+    # is_file         = os.path.isfile(args.filename)
+
+    text = get_py_code(file_full_path)
+    if verbose:
+        print(" ---"*20)
+
+    if args.solution == True:
+        rg_found = remarks_finder(text, regex = rgx_lsg)
+        if verbose:
+            print(text[50:384])
+            # print("\n\tSolution:")
+    else:
+        rg_found = remarks_finder(text, regex = rgx_pts)
+
+
+    print_found_remarks(rg_found)
+    print(file_name_noext)
+    print_sheet_data(get_sheet_data(text))
+    print_found_total(rg_found)
+
+    return rg_found
+
+def process_cpp(args : argparse.Namespace) -> list:
+
+    file_full_path  = os.path.abspath(args.filename)
+    file_name       = os.path.basename(args.filename)
+    # base_path       = os.path.dirname(file_full_path)
+    file_name_noext = os.path.splitext(file_name)[0]
+    # file_type       = os.path.splitext(file_name)[1]
+    # is_file         = os.path.isfile(args.filename)
+    
+    # text = ''
+    with open(file=file_full_path,  mode="r") as f:
+        text = f.read()
+    print(" ---"*20)
+
+    if args.solution == True:
+        rg_found = remarks_finder(text, regex =rgx_lsg_cpp)
+    else:
+        rg_found = remarks_finder(text, regex =rgx_pts_cpp)
+
+    print_found_remarks(rg_found, comment_symbol=cpp_comment)
+    print(file_name_noext)
+    print_sheet_data(get_sheet_data(text, regex=rgx_sht_cpp))
+    print_found_total(rg_found)
+
+    return rg_found
+
+
 
 # https://docs.python.org/3/library/__main__.html
 def main():
@@ -321,46 +509,25 @@ def main():
         '\n     calldir: ',   os.getcwd(),
         )
 
-    parser = prepare_parser()
+    parser = prepare_argv_parser()
     
     args = parser.parse_args()
-    # print(args)
 
-    file_full_path  = os.path.abspath(args.filename)
-    file_name       = os.path.basename(args.filename)
-    base_path       = os.path.dirname(file_full_path)
-    file_name_noext = os.path.splitext(file_name)[0]
-    file_type       = os.path.splitext(file_name)[1]
-    is_file         = os.path.isfile(args.filename)
-    is_ipynb        = args.filename.endswith('.ipynb')
+    # debug
+    print(args)
 
-    if(not is_file):
-        print("Error: not a file!")
+    if not check_file(args):
         return 1
-    if not is_ipynb:
-        print("Error: Currently only *.ipynb is supported!")
-        return 1
-    
-    # print(file_name_noext, " is a file: ", is_file, sep='')
-    # print("*", file_type, " is a notebook: ", is_ipynb, sep='')
-    # print(file_name)
-    # print(base_path)
-    # print(file_full_path)
 
-    text = get_py_code(file_full_path)
-    print(" --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---")
+    if args.jupyternotebook == True and args.cplusplus == False:
+        rg_found = process_ipynb(args)
 
-    if args.solution == True:
-        rg_found = remarks_finder(text, regex = rgx_lsg)
-        print(text[50:384])
-        print("\n\tSolution:")
+    if args.cplusplus == True:
+        rg_found = process_cpp(args)
+
     else:
-        rg_found = remarks_finder(text, regex = rgx_pts)
-
-    print_found_remarks(rg_found)
-    print(file_name_noext)
-    print_sheet_data(get_sheet_data(text))
-    print_found_total(rg_found)
+        rg_found = []
+        
 
     return 0
 
