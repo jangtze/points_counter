@@ -5,7 +5,7 @@
  File Created: 08.05.2023
        Author: jangtze (yangntze+github@gmail.com)
 -----
-Last Modified: 18.05.2023 00:16:21
+Last Modified: 21.05.2023 19:35:38
   Modified By: jangtze (yangntze+github@gmail.com)
 -----
     Copyright: 2023 jangtze
@@ -152,6 +152,8 @@ def get_sheet_data(text : str, regex : str = rgx_sht) -> list:
     #     'points'    : int(res[0][2]) if res[0][2] != '' else 0,
     #     'bonus'     : int(res[0][3]) if res[0][3] != '' else 0
     #     }
+    if len(res) == 0:
+        return sheet_data_dict
     
     for key in cmpldrgx.groupindex.keys():
         # print(
@@ -346,6 +348,11 @@ def print_found_total(match_dict_lst : list):
     )
 
 def print_sheet_data(sh_dat_dict : dict):
+    if( sh_dat_dict['sheet'] == 0 and
+        sh_dat_dict['exercise'] == 'N/A' and
+        sh_dat_dict['points'] == 0.0 and
+        sh_dat_dict['bonus'] == 0.0):
+        return
     print('Extracted Sheet Data')
     # print('Blattdaten')
     print(
