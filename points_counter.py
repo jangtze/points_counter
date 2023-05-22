@@ -6,7 +6,7 @@
  File Created: 08.05.2023
        Author: jangtze (yangntze+github@gmail.com)
 -----
-Last Modified: 22.05.2023 15:09:42
+Last Modified: 22.05.2023 17:58:20
   Modified By: jangtze (yangntze+github@gmail.com)
 -----
     Copyright: 2023 jangtze
@@ -96,7 +96,7 @@ rgx_sht_can_find = """
 # -> they come in lists of line_strs starting and ending with quotes""
 # -> would give the advantage of having cell numbers where something happened
 
-def get_py_code(ipynb_file):
+def get_py_code(ipynb_file : str) -> str:
     # https://stackoverflow.com/questions/37797709/convert-json-ipython-notebook-ipynb-to-py-file
     # jupyter nbconvert --to script 'my-notebook.ipynb'
 
@@ -127,6 +127,12 @@ def get_py_code(ipynb_file):
         stderr=subprocess.DEVNULL, # get rid of "I want IPython, even though it works without"
         text=True
     )
+    
+    # print(a)
+
+    if a.stdout == '':
+        print('Error: Got no text from jupyter nbconvert!')
+
     return a.stdout
 
 def get_sheet_data(text : str, regex : str = rgx_sht) -> list:
