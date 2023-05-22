@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 '''
 
       Project: hiwi_ss23
@@ -5,14 +6,12 @@
  File Created: 08.05.2023
        Author: jangtze (yangntze+github@gmail.com)
 -----
-Last Modified: 21.05.2023 19:35:38
+Last Modified: 22.05.2023 15:09:42
   Modified By: jangtze (yangntze+github@gmail.com)
 -----
     Copyright: 2023 jangtze
 
 '''
-
-#!/usr/bin/env python3
 
 # https://stackoverflow.com/questions/27494758/how-do-i-make-a-python-script-executable
 
@@ -392,7 +391,7 @@ def prepare_argv_parser() -> argparse.ArgumentParser:
             optionally add it to the PATH
                 export PATH=/path/to/script:$PATH
             and then call it as 
-                ./points_counter.py filename
+                points_counter.py filename
             """), '  '),
         epilog=textwrap.dedent("""\
             ... enjoy and give feedback to yangntze+ptscnt@gmail.com
@@ -517,13 +516,29 @@ def main():
         )
 
     parser = prepare_argv_parser()
-    
-    args = parser.parse_args()
+    args = 0
+    # https://stackoverflow.com/questions/4042452/display-help-message-with-python-argparse-when-script-is-called-without-any-argu
+    try:
+        # print("try")
+        args = parser.parse_args()
+    except SystemExit as err:
+        if err.code == 2:
+            # unknown argument or filename
+            parser.error('... exiting')
+
+    except:
+        # other errors
+        # print("except")
+        # parser.print_help()
+        # parser.print_usage()
+        # print(parser._get_positional_kwargs())
+        parser.error('... exiting')
 
     # debug
-    print(args)
+    # print(args)
 
     if not check_file(args):
+        parser.print_help()
         return 1
 
     if args.jupyternotebook == True and args.cplusplus == False:
