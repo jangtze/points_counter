@@ -6,7 +6,7 @@
  File Created: 08.05.2023
        Author: jangtze (yangntze+github@gmail.com)
 -----
-Last Modified: 22.05.2023 17:58:20
+Last Modified: 23.05.2023 01:18:13
   Modified By: jangtze (yangntze+github@gmail.com)
 -----
     Copyright: 2023 jangtze
@@ -58,7 +58,14 @@ cor_point_comment   = r' *!!! *([\+\-]+\d+(?:\.\d+)?)?(\s*(?:inoff\.?)?\s*ZP)?(.
 # py / ipynb
 rgx_lsg     = line_of_code + py_comment + lsg_point_comment # points in the solutions
 rgx_pts     = line_of_code + py_comment + cor_point_comment # points in submission added or substracted
-rgx_sht     = r'^.*(?P<sheet>\d+).\s*Uebungsblatt,\s*(?:freiw\.?)?\s*Aufgabe\s*(?P<exercise>\d+ ?(?:[a-zA-Z])?\)?) *#\n#\s*(?:\d\.\s*Vorgabe[A-Za-z#.,:\s\n]*)?(?:\(?(?P<points>\d+)(?=\s*Pkt|\s*Punkte)\s*(?:Pkt\.?)?(?:Punkte)?\)?)?(?:.*?(?P<bonus>\d+)\s*Zusatzpkt\.?)?'
+rgx_sht     = r'^.*(?P<sheet>\d+).\s*Uebungsblatt,\s*(?:freiw\.?)?\s*Aufgabe\s*(?P<exercise>\d+ ?(?:[a-zA-Z])?\)?) *#\n#\s*(?:\d\.\s*Vorgabe[A-Za-z#.,:\s\n]*)?(?:\(?(?P<points>\d+(?=\s*Pkt|\s*Punkte))\s*(?:Pkt\.|Punkte)?)?\)?(?:(?:.*?)(?P<bonus>\d+(?=.*Zu))\s*(?:Zusatzpkt\.?|Zusatzpunkte)?)?\)?'
+# before sheet 03:
+# ^.*(?P<sheet>\d+).\s*Uebungsblatt,\s*(?:freiw\.?)?\s*Aufgabe\s*(?P<exercise>\d+ ?(?:[a-zA-Z])?\)?) *#\n#\s*(?:\d\.\s*Vorgabe[A-Za-z#.,:\s\n]*)?(?:\(?(?P<points>\d+)(?=\s*Pkt|\s*Punkte)\s*(?:Pkt\.?)?(?:Punkte)?\)?)?(?:.*?(?P<bonus>\d+)\s*Zusatzpkt\.?)?
+# then ...
+# ^.*(?P<sheet>\d+).\s*Uebungsblatt,\s*(?:freiw\.?)?\s*Aufgabe\s*(?P<exercise>\d+ ?(?:[a-zA-Z])?\)?) *#\n#\s*(?:\d\.\s*Vorgabe[A-Za-z#.,:\s\n]*)?(?:\(?(?P<points>\d+)(?=\s*Pkt|\s*Punkte)\s*(?:Pkt\.?)?(?:Punkte)?)?(?:.*?)?(?:(?P<bonus>\d+)\s*(?:.*?Zusatzpkt\.?.*?|.*?Zusatzpunkte.*?)?)\)?
+# ^.*(?P<sheet>\d+).\s*Uebungsblatt,\s*(?:freiw\.?)?\s*Aufgabe\s*(?P<exercise>\d+ ?(?:[a-zA-Z])?\)?) *#\n#\s*(?:\d\.\s*Vorgabe[A-Za-z#.,:\s\n]*)?(?:\(?(?P<points>\d+)(?=\s*Pkt|\s*Punkte)\s*(?:Pkt\.|Punkte)?)?\)?(?:.*?)?(?:(?P<bonus>\d+)\s*(?:.*?Zusatzpkt\.??.*?|.*?Zusatzpunkte.*?)?)?\)?
+# ^.*(?P<sheet>\d+).\s*Uebungsblatt,\s*(?:freiw\.?)?\s*Aufgabe\s*(?P<exercise>\d+ ?(?:[a-zA-Z])?\)?) *#\n#\s*(?:\d\.\s*Vorgabe[A-Za-z#.,:\s\n]*)?(?:\(?(?P<points>\d+)\s*(?:Pkt\.|Punkte)?)?\)?(?:.*?)(?:(?P<bonus>\d+)\s*(?:Zusatzpkt\.?|Zusatzpunkte)?)\)?
+# ^.*(?P<sheet>\d+).\s*Uebungsblatt,\s*(?:freiw\.?)?\s*Aufgabe\s*(?P<exercise>\d+ ?(?:[a-zA-Z])?\)?) *#\n#\s*(?:\d\.\s*Vorgabe[A-Za-z#.,:\s\n]*)?(?:\(?(?P<points>\d+(?=\s*Pkt|\s*Punkte))\s*(?:Pkt\.|Punkte)?)?\)?(?:(?:.*?)(?P<bonus>\d+(?=.*Zu))\s*(?:Zusatzpkt\.?|Zusatzpunkte)?)?\)?
 
 # cpp
 rgx_lsg_cpp = line_of_code + re.escape(cpp_comment) + lsg_point_comment # points in the solutions
