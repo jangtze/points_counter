@@ -6,7 +6,7 @@
  File Created: 08.05.2023
        Author: jangtze (yangntze+github@gmail.com)
 -----
-Last Modified: 23.05.2023 01:18:13
+Last Modified: 23.05.2023 01:53:24
   Modified By: jangtze (yangntze+github@gmail.com)
 -----
     Copyright: 2023 jangtze
@@ -246,15 +246,18 @@ def remarks_finder(text : str, regex : str = rgx_lsg) -> list:
             points  = 0
         zp_val      = m.group(3)
         zp_bool     = isinstance(zp_val, str) and 'ZP' in zp_val
+        zp_secret   = isinstance(zp_val, str) and 'ZP' in zp_val and "inoff" in zp_val
 
         res_dict_lst.append(dict({
-            'pos' : next(i+1 for i in range(len(line_num)) if line_num[i]>m.start(0)) , 
-            'match' : m , 
-            'points' : points , 
-            'bonus' : zp_bool , 
-            'code' : code_str , 
-            'comment' : cmmt_str , 
-            'line' : line_str
+            'pos'       : next(i+1 for i in range(len(line_num)) if line_num[i]>m.start(0)) , 
+            'match'     : m , 
+            'points'    : points , 
+            'bonus'     : zp_bool , 
+            'secret'    : zp_secret , 
+            'bonus_str' : zp_val,
+            'code'      : code_str , 
+            'comment'   : cmmt_str , 
+            'line'      : line_str
         }))
     
     # # debugging
@@ -283,10 +286,10 @@ def remarks_finder(text : str, regex : str = rgx_lsg) -> list:
         # if zp_bool:
         #     bonusp_sum += float(points)
         # else:
-        #     points_sum += float(points)
+        #     point_sum += float(points)
 
     # print(
-    #     "Punkte: {0:3}, Bonuspunkte: {1:3}".format(points_sum, bonusp_sum)
+    #     "Punkte: {0:3}, Bonuspunkte: {1:3}".format(point_sum, bonusp_sum)
     # )
 
     # print("Found {0} entries".format(num_mtc))
@@ -294,20 +297,28 @@ def remarks_finder(text : str, regex : str = rgx_lsg) -> list:
 
 def get_points(match_dict_lst : list) -> dict:
 
-    points_sum = 0
+    point_sum = 0
     bonusp_sum = 0
+    secret_sum = 0
 
     for match_dct in match_dict_lst:
-        if match_dct['bonus']:
-            # print('bonus')
-            # print(bonusp_sum, match_dct['points'])
-            bonusp_sum += match_dct['points']
-            # print(bonusp_sum )
+        if match_dct['bonus'] :
+            if match_dct['secret'] :
+                secret_sum += match_dct['points']
+            else:
+                # print('bonus')
+                # print(bonusp_sum, match_dct['points'])
+                bonusp_sum += match_dct['points']
+                # print(bonusp_sum )
         else:
-            points_sum += match_dct['points']
+            point_sum += match_dct['points']
 
     res = {}
-    res.update({'points_sum' : points_sum, 'bonus_sum' : bonusp_sum})
+    res.update({
+        'point_sum'     : point_sum, 
+        'bonus_sum'     : bonusp_sum, 
+        'inoff_sum'     : secret_sum
+        })
     return res
 
 def print_found_remarks(match_dict_lst : list, comment_symbol=py_comment):
@@ -328,11 +339,11 @@ def print_found_remarks(match_dict_lst : list, comment_symbol=py_comment):
         # print(match_dct['code'], '|', match_dct['comment'])
 
         info = ''
-        bonus_str = "ZP" if match_dct['bonus'] else ""
+        bonus_str = "" if not match_dct['bonus'] else "ZP" if not match_dct['secret'] else "iZP"
         if (    match_dct['code']   == '' 
             or  comment_symbol      == match_dct['code'].strip() # if the 'code' isa a line with two comment symbols
             ) and not match_dct['comment'] == '':
-            points = '+' + str(match_dct['points']) if match_dct['points']>0 else str(match_dct['points']) + bonus_str
+            # points = '+' + str(match_dct['points']) if match_dct['points']>0 else str(match_dct['points']) + bonus_str
             info = (comment_symbol 
                     # + ' ' + points # do I want points with the comment string?
                     + ' ' + match_dct['comment'].strip()
@@ -343,7 +354,7 @@ def print_found_remarks(match_dict_lst : list, comment_symbol=py_comment):
         else:
             info = match_dct['line'].strip()
         print(
-            '{2: 2.1f} {3:2} {0:>4}: {1:80} '.format(
+            '{2: 2.1f} {3:>3} {0:>4}: {1:80} '.format(
                 match_dct['pos'], 
                 info,
                 match_dct['points'],
@@ -351,13 +362,20 @@ def print_found_remarks(match_dict_lst : list, comment_symbol=py_comment):
             )
         )
 
-def print_found_total(match_dict_lst : list):
+def print_found_total(match_dict_lst : list, is_sol=False):
     totals = get_points(match_dict_lst)
     print("Found points from remarks in this file:")
-    print(
-        # "Punkte: {0:3}  \t Bonuspunkte (ZP): {1:2}".format(totals['points_sum'], totals['bonus_sum'])
-        "Points:  {0:3.1f}  \t Bonus Points (ZP):  {1:2.1f}".format(totals['points_sum'], totals['bonus_sum'])
-    )
+    if not is_sol:
+        print(
+            # "Punkte: {0:3}  \t Bonuspunkte (ZP): {1:2}".format(totals['point_sum'], totals['bonus_sum'])
+            "Points:  {0:3.1f}  \t Bonus Points (ZP):  {1:2.1f}".format(totals['point_sum'], totals['bonus_sum']+totals['inoff_sum'])
+        )
+    else:
+        print(
+            # "Punkte: {0:3}  \t Bonuspunkte (ZP): {1:2}".format(totals['point_sum'], totals['bonus_sum'])
+            "Points:  {0:3.1f}  \t Bonus Points (ZP):  {1:2.1f} \t Secret Bonus (inoff. ZP):  {2:2.1f}".format(totals['point_sum'], totals['bonus_sum'], totals['inoff_sum'])
+        )
+
 
 def print_sheet_data(sh_dat_dict : dict):
     if( sh_dat_dict['sheet'] == 0 and
@@ -482,11 +500,10 @@ def process_ipynb(args : argparse.Namespace, verbose : bool =True) -> list:
     else:
         rg_found = remarks_finder(text, regex = rgx_pts)
 
-
     print_found_remarks(rg_found)
     print(file_name_noext)
     print_sheet_data(get_sheet_data(text))
-    print_found_total(rg_found)
+    print_found_total(rg_found, is_sol=args.solution)
 
     return rg_found
 
@@ -512,8 +529,8 @@ def process_cpp(args : argparse.Namespace) -> list:
     print_found_remarks(rg_found, comment_symbol=cpp_comment)
     print(file_name_noext)
     print_sheet_data(get_sheet_data(text, regex=rgx_sht_cpp))
-    print_found_total(rg_found)
-
+    print_found_total(rg_found, is_sol=args.solution)
+        
     return rg_found
 
 
