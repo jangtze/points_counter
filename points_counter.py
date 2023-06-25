@@ -6,7 +6,7 @@
  File Created: 08.05.2023
        Author: jangtze (yangntze+github@gmail.com)
 -----
-Last Modified: 23.05.2023 01:53:24
+Last Modified: 18.06.2023 15:00:59
   Modified By: jangtze (yangntze+github@gmail.com)
 -----
     Copyright: 2023 jangtze
@@ -26,6 +26,11 @@ import argparse         # https://docs.python.org/3/library/argparse.html # cmd 
 import textwrap         # https://docs.python.org/3/library/textwrap.html # for help text
 import re               # main script part
 import subprocess       # main script part
+
+# TODO: use classes to bundle
+# TODO: split by cells and process ipynb directly, put cell / linenumbers into dicts in the returned list of dicitonaries
+# TODO: emplace points comment in file (option)
+# TODO: change language to option not boolean flag (we can't have several languages)
 
 #
 # regex Versions
@@ -211,6 +216,9 @@ def get_sheet_data(text : str, regex : str = rgx_sht) -> list:
 
 def remarks_finder(text : str, regex : str = rgx_lsg) -> list:
 
+    # TODO: split by cells and process ipynb directly, put cell / linenumbers into 
+    # dicts in the returned list of dicitonaries maybe call this finder for each cell and handle cells outside
+
     # print(text)
     # print()
 
@@ -322,6 +330,8 @@ def get_points(match_dict_lst : list) -> dict:
     return res
 
 def print_found_remarks(match_dict_lst : list, comment_symbol=py_comment):
+
+    # TODO: add functionality for cell number with line-number (inside cell)
 
     for match_dct in match_dict_lst:
         # print(
@@ -471,7 +481,7 @@ def check_file(args : argparse.Namespace) -> bool:
         print("Error: not a file!")
         return False
 
-    file_endings    = ('.ipynb', '.cpp', '.hpp', '.h', '.c' )
+    file_endings    = ('.txt', '.ipynb', '.cpp', '.hpp', '.h', '.c' )
     is_format       = args.filename.endswith(file_endings)
     if not is_format:
         print("Error: Currently only files of type ", file_endings ," are supported!")
@@ -488,6 +498,7 @@ def process_ipynb(args : argparse.Namespace, verbose : bool =True) -> list:
     # file_type       = os.path.splitext(file_name)[1]
     # is_file         = os.path.isfile(args.filename)
 
+    # TODO: split by cells and process ipynb directly, put cell / linenumbers into dicts in the returned list of dicitonaries
     text = get_py_code(file_full_path)
     if verbose:
         print(" ---"*20)
